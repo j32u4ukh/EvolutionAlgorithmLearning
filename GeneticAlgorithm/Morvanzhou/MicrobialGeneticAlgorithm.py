@@ -58,11 +58,14 @@ class MGA(object):
             sub_pop_idx = np.random.choice(np.arange(0, self.pop_size), 
                                            size=2, 
                                            replace=False)
-            sub_pop = self.pop[sub_pop_idx]             # pick 2 from pop
+            # pick 2 from pop
+            sub_pop = self.pop[sub_pop_idx]             
             product = F(self.translateDNA(sub_pop))
             fitness = self.get_fitness(product)
             loser_winner_idx = np.argsort(fitness)
-            loser_winner = sub_pop[loser_winner_idx]    # the first is loser and second is winner
+            
+            # the first is loser and second is winner
+            loser_winner = sub_pop[loser_winner_idx]
             loser_winner = self.crossover(loser_winner)
             loser_winner = self.mutate(loser_winner)
             self.pop[sub_pop_idx] = loser_winner

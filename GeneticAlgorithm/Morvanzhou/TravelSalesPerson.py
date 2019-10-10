@@ -7,15 +7,17 @@ Created on Wed Oct  9 08:23:32 2019
 import matplotlib.pyplot as plt
 import numpy as np
 
-N_CITIES = 20  # DNA size
+# DNA size
+N_CITIES = 20  
 CROSS_RATE = 0.1
+# 變異機率
 MUTATE_RATE = 0.02
 POP_SIZE = 500
 N_GENERATIONS = 500
 
 
 class GA(object):
-    def __init__(self, DNA_size, cross_rate, mutation_rate, pop_size, ):
+    def __init__(self, DNA_size, cross_rate, mutation_rate, pop_size):
         self.DNA_size = DNA_size
         self.cross_rate = cross_rate
         self.mutate_rate = mutation_rate

@@ -14,11 +14,13 @@ CROSS_RATE = 0.8         # mating probability (DNA crossover)
 # 產生變異的機率
 MUTATION_RATE = 0.003
 N_GENERATIONS = 200
-X_BOUND = [0, 5]         # x upper and lower bounds
+# x upper and lower bounds
+X_BOUND = [0, 5]
+
 
 # to find the maximum of this function
 def F(x):
-    return np.sin(10 * x) * x + np.cos(2 * x) * x     
+    return np.sin(10 * x) * x + np.cos(2 * x) * x
 
 
 # 適應程度
@@ -26,9 +28,12 @@ def get_fitness(pred):
     return pred + 1e-3 - np.min(pred)
 
 
-# DNA 與實際數值間的轉換
+# 解釋 DNA：DNA 與實際數值間的轉換
 # convert binary DNA to decimal and normalize it to a range(0, 5)
-def translateDNA(pop):    
+def translateDNA(pop):
+    # np.arange(DNA_SIZE) = array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    # np.arange(DNA_SIZE)[::-1] = array([9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
+    # (100, 10) dot (10,) = (100,)
     return pop.dot(2 ** np.arange(DNA_SIZE)[::-1]) / float(2**DNA_SIZE-1) * X_BOUND[1]
 
 
@@ -36,6 +41,8 @@ def translateDNA(pop):
 # nature selection wrt pop's fitness
 def select(pop, fitness):
     # parameter p:選擇的機率，適應度高機率高，適應度低機率低
+    # np.arange(POP_SIZE) = [0, 1, ..., 98, 99]
+    # p:np.arange(POP_SIZE) 中每個元素被抽出的機率，因此長度與它等長
     idx = np.random.choice(np.arange(POP_SIZE), 
                            size=POP_SIZE, 
                            replace=True,
@@ -47,11 +54,11 @@ def select(pop, fitness):
 # mating process (genes crossover)
 def crossover(parent, pop):     
     if np.random.rand() < CROSS_RATE:
-        # select another individual from pop
+        # 從母群挑一個配對對象
         i_ = np.random.randint(0, POP_SIZE, size=1)
-        # choose crossover points
+        # cross_points = [True,  True, False, ..., False, False]
         cross_points = np.random.randint(0, 2, size=DNA_SIZE).astype(np.bool)
-        # mating and produce one child
+        # True 的部分會被替換成對象的值，相當於父母雙方基因的結合
         parent[cross_points] = pop[i_, cross_points]                            
     return parent
 

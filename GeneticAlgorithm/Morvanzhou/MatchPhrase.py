@@ -9,7 +9,8 @@ import numpy as np
 TARGET_PHRASE = 'You get it!'       # target DNA
 POP_SIZE = 300                      # population size
 CROSS_RATE = 0.4                    # mating probability (DNA crossover)
-MUTATION_RATE = 0.01                # mutation probability
+# 變異機率
+MUTATION_RATE = 0.01
 N_GENERATIONS = 1000
 
 DNA_SIZE = len(TARGET_PHRASE)
@@ -38,20 +39,29 @@ class GA(object):
 
     def select(self):
         fitness = self.get_fitness() + 1e-4     # add a small amount to avoid all zero fitness
-        idx = np.random.choice(np.arange(self.pop_size), size=self.pop_size, replace=True, p=fitness/fitness.sum())
+        idx = np.random.choice(np.arange(self.pop_size), 
+                               size=self.pop_size, 
+                               replace=True, 
+                               p=fitness/fitness.sum())
         return self.pop[idx]
 
     def crossover(self, parent, pop):
         if np.random.rand() < self.cross_rate:
-            i_ = np.random.randint(0, self.pop_size, size=1)                        # select another individual from pop
-            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)   # choose crossover points
-            parent[cross_points] = pop[i_, cross_points]                            # mating and produce one child
+            # select another individual from pop
+            i_ = np.random.randint(0, self.pop_size, size=1)
+            
+            # choose crossover points
+            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)
+            
+            # mating and produce one child
+            parent[cross_points] = pop[i_, cross_points]                            
         return parent
 
     def mutate(self, child):
         for point in range(self.DNA_size):
             if np.random.rand() < self.mutate_rate:
-                child[point] = np.random.randint(*self.DNA_bound)  # choose a random ASCII index
+                # choose a random ASCII index
+                child[point] = np.random.randint(*self.DNA_bound)  
         return child
 
     def evolve(self):

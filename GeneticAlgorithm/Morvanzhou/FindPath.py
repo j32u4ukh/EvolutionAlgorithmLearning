@@ -8,19 +8,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 N_MOVES = 150
-DNA_SIZE = N_MOVES*2         # 40 x moves, 40 y moves
+# x moves + y moves
+DNA_SIZE = N_MOVES * 2
 DIRECTION_BOUND = [0, 1]
 CROSS_RATE = 0.8
+# 變異機率
 MUTATE_RATE = 0.0001
 POP_SIZE = 100
 N_GENERATIONS = 100
+
 GOAL_POINT = [10, 5]
 START_POINT = [0, 5]
 OBSTACLE_LINE = np.array([[5, 2], [5, 8]])
 
 
 class GA(object):
-    def __init__(self, DNA_size, DNA_bound, cross_rate, mutation_rate, pop_size, ):
+    def __init__(self, DNA_size, DNA_bound, cross_rate, mutation_rate, pop_size):
         self.DNA_size = DNA_size
         DNA_bound[1] += 1
         self.DNA_bound = DNA_bound
@@ -47,7 +50,10 @@ class GA(object):
         return fitness
 
     def select(self, fitness):
-        idx = np.random.choice(np.arange(self.pop_size), size=self.pop_size, replace=True, p=fitness/fitness.sum())
+        idx = np.random.choice(np.arange(self.pop_size), 
+                               size=self.pop_size, 
+                               replace=True, 
+                               p=fitness/fitness.sum())
         return self.pop[idx]
 
     def crossover(self, parent, pop):
