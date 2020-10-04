@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct  9 08:08:51 2019
-
-@author: j32u4ukh
-"""
 import numpy as np
 
 TARGET_PHRASE = 'You get it!'       # target DNA
@@ -19,21 +13,24 @@ TARGET_ASCII = np.fromstring(TARGET_PHRASE, dtype=np.uint8)  # convert string to
 ASCII_BOUND = [32, 126]
 
 
-class GA(object):
-    def __init__(self, DNA_size, DNA_bound, cross_rate, mutation_rate, pop_size):
-        self.DNA_size = DNA_size
-        DNA_bound[1] += 1
-        self.DNA_bound = DNA_bound
+class GA:
+    def __init__(self, dna_size, dna_bound, cross_rate, mutation_rate, pop_size):
+        self.DNA_size = dna_size
+        dna_bound[1] += 1
+        self.DNA_bound = dna_bound
         self.cross_rate = cross_rate
         self.mutate_rate = mutation_rate
         self.pop_size = pop_size
 
-        self.pop = np.random.randint(*DNA_bound, size=(pop_size, DNA_size)).astype(np.int8)  # int8 for convert to ASCII
+        self.pop = np.random.randint(*dna_bound, size=(pop_size, dna_size)).astype(np.int8)  # int8 for convert to ASCII
 
-    def translateDNA(self, DNA):                 # convert to readable string
-        return DNA.tostring().decode('ascii')
+    @staticmethod
+    # convert to readable string
+    def translateDNA(dna):
+        return dna.tostring().decode('ascii')
 
-    def get_fitness(self):                      # count how many character matches
+    # count how many character matches
+    def get_fitness(self):
         match_count = (self.pop == TARGET_ASCII).sum(axis=1)
         return match_count
 
@@ -73,8 +70,9 @@ class GA(object):
             parent[:] = child
         self.pop = pop
 
+
 if __name__ == '__main__':
-    ga = GA(DNA_size=DNA_SIZE, DNA_bound=ASCII_BOUND, cross_rate=CROSS_RATE,
+    ga = GA(dna_size=DNA_SIZE, dna_bound=ASCII_BOUND, cross_rate=CROSS_RATE,
             mutation_rate=MUTATION_RATE, pop_size=POP_SIZE)
 
     for generation in range(N_GENERATIONS):

@@ -1,14 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Oct  9 08:23:32 2019
-
-@author: j32u4ukh
-"""
 import matplotlib.pyplot as plt
 import numpy as np
 
 # DNA size
-N_CITIES = 20  
+N_CITIES = 20
 CROSS_RATE = 0.1
 # 變異機率
 MUTATE_RATE = 0.02
@@ -16,19 +10,21 @@ POP_SIZE = 500
 N_GENERATIONS = 500
 
 
-class GA(object):
-    def __init__(self, DNA_size, cross_rate, mutation_rate, pop_size):
-        self.DNA_size = DNA_size
+class GA:
+    def __init__(self, dna_size, cross_rate, mutation_rate, pop_size):
+        self.DNA_size = dna_size
         self.cross_rate = cross_rate
         self.mutate_rate = mutation_rate
         self.pop_size = pop_size
 
-        self.pop = np.vstack([np.random.permutation(DNA_size) for _ in range(pop_size)])
+        # np.random.permutation(dna_size): 長度為 dna_size 的數列並打亂
+        self.pop = np.vstack([np.random.permutation(dna_size) for _ in range(pop_size)])
 
-    def translateDNA(self, DNA, city_position):     # get cities' coord in order
-        line_x = np.empty_like(DNA, dtype=np.float64)
-        line_y = np.empty_like(DNA, dtype=np.float64)
-        for i, d in enumerate(DNA):
+    @staticmethod
+    def translateDNA(dna, city_position):     # get cities' coord in order
+        line_x = np.empty_like(dna, dtype=np.float64)
+        line_y = np.empty_like(dna, dtype=np.float64)
+        for i, d in enumerate(dna):
             city_coord = city_position[d]
             line_x[i, :] = city_coord[:, 0]
             line_y[i, :] = city_coord[:, 1]
@@ -50,9 +46,21 @@ class GA(object):
 
     def crossover(self, parent, pop):
         if np.random.rand() < self.cross_rate:
-            i_ = np.random.randint(0, self.pop_size, size=1)                        # select another individual from pop
-            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)   # choose crossover points
-            keep_city = parent[~cross_points]                                       # find the city number
+            # select another individual from pop
+            i_ = np.random.randint(0, self.pop_size, size=1)
+
+            # choose crossover points: array([0, 1, 1, ..., 1, 0]) -> array([ False, True,  True, ..., True, False])
+            cross_points = np.random.randint(0, 2, self.DNA_size).astype(np.bool)
+
+            # find the city number
+            keep_city = parent[~cross_points]
+
+            # np.ravel() 和 np.flatten() 都是將多維陣列降為一維陣列，兩者的區別在於
+            # np.flatten() 返回一份拷貝，對拷貝所做的修改不會影響（reflects）原始矩陣，
+            # np.ravel()返回的是視圖（view），會影響（reflects）原始矩陣。
+            # np.isin(a, b) 用於判定 a 中的元素在 b 中是否出現過，如果出現過返回 True,否則返回 False,
+            # 最終結果為一個形狀和 a 一模一樣的陣列。
+            # 但是當引數 invert 被設定為 True 時，情況恰好相反，如果 a 中元素在 b 中沒有出現則返回 True,如果出現了則返回 False.
             swap_city = pop[i_, np.isin(pop[i_].ravel(), keep_city, invert=True)]
             parent[:] = np.concatenate((keep_city, swap_city))
         return parent
@@ -61,8 +69,8 @@ class GA(object):
         for point in range(self.DNA_size):
             if np.random.rand() < self.mutate_rate:
                 swap_point = np.random.randint(0, self.DNA_size)
-                swapA, swapB = child[point], child[swap_point]
-                child[point], child[swap_point] = swapB, swapA
+                swap_a, swap_b = child[point], child[swap_point]
+                child[point], child[swap_point] = swap_b, swap_a
         return child
 
     def evolve(self, fitness):
@@ -75,7 +83,7 @@ class GA(object):
         self.pop = pop
 
 
-class TravelSalesPerson(object):
+class TravelSalesPerson:
     def __init__(self, n_cities):
         self.city_position = np.random.rand(n_cities, 2)
         plt.ion()
@@ -90,7 +98,7 @@ class TravelSalesPerson(object):
         plt.pause(0.01)
 
 
-ga = GA(DNA_size=N_CITIES, cross_rate=CROSS_RATE, mutation_rate=MUTATE_RATE, pop_size=POP_SIZE)
+ga = GA(dna_size=N_CITIES, cross_rate=CROSS_RATE, mutation_rate=MUTATE_RATE, pop_size=POP_SIZE)
 
 env = TravelSalesPerson(N_CITIES)
 for generation in range(N_GENERATIONS):
