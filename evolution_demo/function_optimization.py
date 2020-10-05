@@ -29,7 +29,10 @@ class FunctionOptimization(Evolution):
                     self.population[p, r] = 1 if self.population[p, r] == 0 else 0
 
     def naturalSelection(self, env):
-        pass
+        # TODO: 計算適應度 -> 取出最優秀的一批基因組來繁殖 -> 計算適應度 -> 淘汰最差的一批基因組
+        self.getFitness()
+        self.reproduction()
+        self.getFitness()
 
     def getFitness(self):
         self.population = func(self.population)
@@ -43,8 +46,27 @@ class FunctionOptimization(Evolution):
 
         best = self.population[:n_best]
 
-    def geneExchange(self, g1, g2):
-        pass
+        for _ in range(n_best):
+            # 取得兩個不重複的索引值
+            idx = np.random.choice(np.arange(0, n_best), size=2, replace=False)
+            g1 = best[idx[0]]
+            g2 = best[idx[1]]
+
+            # 基因交換
+            child = self.geneExchange(g1, g2)
+
+            # 加入族群中
+            self.population.append(child)
+
+    def geneExchange(self, *args):
+        child = args[0].copy()
+        other = args[1]
+
+        # exchange_idx = [True,  True, False, ..., False, False]
+        exchange_idx = np.random.randint(0, 2, size=self.rna_size).astype(np.bool)
+        child[exchange_idx] = other[exchange_idx]
+
+        return child
 
 
 if __name__ == "__main__":
