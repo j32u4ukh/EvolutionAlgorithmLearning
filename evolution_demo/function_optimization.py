@@ -40,12 +40,14 @@ class FunctionOptimization(Evolution):
 
         # 繁殖
         self.reproduction()
+        # self.logger.debug(f"n_population: {len(self.population)}")
 
         # 計算適應度並排序
         self.getFitness()
 
         # 只保留較佳的基因組
         self.population = self.population[-self.n_population:]
+        # self.logger.debug(f"n_population: {len(self.population)}")
 
     def getFitness(self):
         x = self.translation()
@@ -65,27 +67,33 @@ class FunctionOptimization(Evolution):
     def reproduction(self):
         # 取出最優秀的一批基因組
         n_best = int(self.N_POPULATION * self.reproduction_rate)
+        # self.logger.debug(f"n_best: {n_best}")
 
         if n_best > self.n_population:
             n_best = self.n_population
 
         best = self.population[-n_best:]
+        # self.logger.debug(f"#best: {len(best)}")
 
         for _ in range(n_best):
             # 取得兩個不重複的索引值
             idx = np.random.choice(np.arange(0, n_best), size=2, replace=False)
+            # self.logger.debug(f"idx: {idx}")
             g1 = best[idx[0]]
             g2 = best[idx[1]]
 
             # 基因交換
             child = self.geneExchange(g1, g2)
+            # self.logger.debug(f"基因交換 child: {child}")
 
             # 產生變異
             child = self.mutate(child)
+            # self.logger.debug(f"產生變異 child: {child}")
 
             # 加入族群中
             # self.population.append(child)
-            np.append(self.population, np.array([child]), axis=0)
+            self.population = np.append(self.population, np.array([child]), axis=0)
+            # self.logger.debug(f"n_population: {len(self.population)}")
 
     def geneExchange(self, *args):
         child = args[0].copy()
@@ -101,7 +109,7 @@ class FunctionOptimization(Evolution):
 if __name__ == "__main__":
     RNA_SIZE = 10
     N_POPULATION = 100
-    MUTATION_RATE = 0.03
+    MUTATION_RATE = 0.003
     X_BOUND = [0, 5]
     N_GENERATIONS = 200
 
@@ -109,6 +117,7 @@ if __name__ == "__main__":
                               rna_size=RNA_SIZE,
                               n_population=N_POPULATION,
                               mutation_rate=MUTATION_RATE)
+    fo.naturalSelection()
 
     plt.ion()
     x = np.linspace(*X_BOUND, 200)
@@ -120,6 +129,7 @@ if __name__ == "__main__":
 
         x = fo.translation()
         y = func(x)
+        # print(y)
         sca = plt.scatter(x,
                           y,
                           s=200,
