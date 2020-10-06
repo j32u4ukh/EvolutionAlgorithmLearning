@@ -41,7 +41,7 @@ class Evolution(metaclass=ABCMeta):
 
     # 基因變異
     @abstractmethod
-    def mutate(self):
+    def mutate(self, child):
         pass
 
     # 繁殖
@@ -57,7 +57,7 @@ class Evolution(metaclass=ABCMeta):
 
     # 計算環境適應度
     @abstractmethod
-    def getFitness(self):
+    def getFitness(self, *args, **kwargs):
         pass
 
     # 天擇

@@ -1,5 +1,6 @@
 from evolution import Evolution
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def func(x):
@@ -7,35 +8,59 @@ def func(x):
 
 
 class FunctionOptimization(Evolution):
-    def __init__(self, rna_size, n_population, mutation_rate):
+    def __init__(self, value_range, rna_size, n_population, mutation_rate):
         super().__init__(rna_size=rna_size, n_population=n_population, logger_name="FunctionOptimization")
         self.mutation_rate = mutation_rate
-        self.value_scale = None
+        self.value_range = value_range
+        self.translation_dot = 2 ** np.arange(self.rna_size)[::-1]
+        self.translation_multiplier = self.value_range[1] / float(2 ** self.rna_size - 1)
 
     def initPopulation(self):
         self.population = np.random.randint(2, size=(self.n_population, self.rna_size))
 
     def translation(self):
-        if self.value_scale is None:
-            self.logger.error("self.value_scale is None")
-            return
+        return self.population.dot(self.translation_dot) * self.translation_multiplier
 
-        return self.population.dot(2 ** np.arange(self.rna_size)[::-1]) / float(2**self.rna_size-1) * self.value_scale
+    def mutate(self, child):
+        for r in range(self.rna_size):
+            if np.random.rand() < self.mutation_rate:
+                child[r] = 1 if child[r] == 0 else 0
 
-    def mutate(self):
-        for p in range(self.n_population):
-            for r in range(self.rna_size):
-                if np.random.rand() < self.mutation_rate:
-                    self.population[p, r] = 1 if self.population[p, r] == 0 else 0
+        return child
 
-    def naturalSelection(self, env):
-        # TODO: 計算適應度 -> 取出最優秀的一批基因組來繁殖 -> 計算適應度 -> 淘汰最差的一批基因組
+    def naturalSelection(self, env=None):
+        """
+        計算適應度 -> 取出最優秀的一批基因組來繁殖 -> 計算適應度 -> 淘汰最差的一批基因組
+
+        :param env:
+        :return:
+        """
+        # 計算適應度並排序
         self.getFitness()
+
+        # 繁殖
         self.reproduction()
+
+        # 計算適應度並排序
         self.getFitness()
+
+        # 只保留較佳的基因組
+        self.population = self.population[-self.n_population:]
 
     def getFitness(self):
-        self.population = func(self.population)
+        x = self.translation()
+        bound_limit = (self.value_range[0] <= x) & (x <= self.value_range[1])
+
+        # 淘汰超出值域範圍的基因組
+        self.population = self.population[bound_limit]
+
+        # 計算適應度
+        values = func(self.translation())
+
+        fitness = np.argsort(values)
+
+        # 根據適應度排序
+        self.population = self.population[fitness]
 
     def reproduction(self):
         # 取出最優秀的一批基因組
@@ -44,7 +69,7 @@ class FunctionOptimization(Evolution):
         if n_best > self.n_population:
             n_best = self.n_population
 
-        best = self.population[:n_best]
+        best = self.population[-n_best:]
 
         for _ in range(n_best):
             # 取得兩個不重複的索引值
@@ -55,8 +80,12 @@ class FunctionOptimization(Evolution):
             # 基因交換
             child = self.geneExchange(g1, g2)
 
+            # 產生變異
+            child = self.mutate(child)
+
             # 加入族群中
-            self.population.append(child)
+            # self.population.append(child)
+            np.append(self.population, np.array([child]), axis=0)
 
     def geneExchange(self, *args):
         child = args[0].copy()
@@ -72,9 +101,35 @@ class FunctionOptimization(Evolution):
 if __name__ == "__main__":
     RNA_SIZE = 10
     N_POPULATION = 100
-    MUTATION_RATE = 0.003
+    MUTATION_RATE = 0.03
     X_BOUND = [0, 5]
+    N_GENERATIONS = 200
 
-    fo = FunctionOptimization(rna_size=RNA_SIZE, n_population=N_POPULATION, mutation_rate=MUTATION_RATE)
-    fo.value_scale = X_BOUND[1]
+    fo = FunctionOptimization(value_range=X_BOUND,
+                              rna_size=RNA_SIZE,
+                              n_population=N_POPULATION,
+                              mutation_rate=MUTATION_RATE)
 
+    plt.ion()
+    x = np.linspace(*X_BOUND, 200)
+    plt.plot(x, func(x))
+
+    for gen in range(N_GENERATIONS):
+        if 'sca' in globals():
+            sca.remove()
+
+        x = fo.translation()
+        y = func(x)
+        sca = plt.scatter(x,
+                          y,
+                          s=200,
+                          lw=0,
+                          c='red',
+                          alpha=0.5)
+        plt.pause(0.05)
+
+        fo.naturalSelection()
+        print(func(fo.translation()[-1]))
+
+    plt.ioff()
+    plt.show()

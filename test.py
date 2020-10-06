@@ -10,30 +10,26 @@ def computeValue(one_hot: np.array):
 
 
 array = np.random.randint(2, size=(5, data_size))
-
-values = []
-for arr in array:
-    value = computeValue(arr)
-    values.append(value)
-
+print(array)
+values = computeValue(array)
+print(values)
+bound_limit = (0 <= values) & (values <= 5)
+print(bound_limit)
+array = array[bound_limit]
+print(array)
+values = computeValue(array)
+print(values)
 idx = np.argsort(values)
 print(idx)
+array = array[idx]
+values = computeValue(array)
 print(values)
-
-sort_array = array[idx]
-
-values = []
-for arr in sort_array:
-    value = computeValue(arr)
-    values.append(value)
-
 idx = np.argsort(values)
 print(idx)
-print(values)
+
 
 # import temp
 #
 # t = temp.Test()
 # t.private()
 # t.public()
-
