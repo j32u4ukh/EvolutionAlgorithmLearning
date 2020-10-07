@@ -28,13 +28,7 @@ class FunctionOptimization(Evolution):
 
         return child
 
-    def naturalSelection(self, env=None):
-        """
-        計算適應度 -> 取出最優秀的一批基因組來繁殖 -> 計算適應度 -> 淘汰最差的一批基因組
-
-        :param env:
-        :return:
-        """
+    def evolve(self, *args, **kwargs):
         # 計算適應度並排序
         self.getFitness()
 
@@ -45,7 +39,17 @@ class FunctionOptimization(Evolution):
         # 計算適應度並排序
         self.getFitness()
 
-        # 只保留較佳的基因組
+        # 淘汰機制
+        self.naturalSelection()
+
+    def naturalSelection(self, *args, **kwargs):
+        """
+        只保留較佳的基因組
+
+        :param args:
+        :param kwargs:
+        :return:
+        """
         self.population = self.population[-self.n_population:]
         # self.logger.debug(f"n_population: {len(self.population)}")
 
@@ -60,6 +64,16 @@ class FunctionOptimization(Evolution):
         values = func(self.translation())
 
         fitness = np.argsort(values)
+
+        highest_fitness = values[fitness[-1]]
+
+        if highest_fitness > self.fitness:
+            self.fitness = highest_fitness
+
+            if self.potential < self.POTENTIAL:
+                self.resetPotential()
+        else:
+            self.potential -= 1
 
         # 根據適應度排序
         self.population = self.population[fitness]
@@ -138,8 +152,11 @@ if __name__ == "__main__":
                           alpha=0.5)
         plt.pause(0.05)
 
-        fo.naturalSelection()
+        fo.evolve()
         print(func(fo.translation()[-1]))
+
+        if fo.potential <= 0:
+            break
 
     plt.ioff()
     plt.show()
