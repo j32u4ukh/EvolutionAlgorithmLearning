@@ -65,10 +65,10 @@ class FunctionOptimization(Evolution):
 
         fitness = np.argsort(values)
 
-        highest_fitness = values[fitness[-1]]
+        average_fitness = values.mean()
 
-        if highest_fitness > self.fitness:
-            self.fitness = highest_fitness
+        if average_fitness > self.fitness:
+            self.fitness = average_fitness
 
             if self.potential < self.POTENTIAL:
                 self.resetPotential()
@@ -153,7 +153,7 @@ if __name__ == "__main__":
         plt.pause(0.05)
 
         fo.evolve()
-        print(func(fo.translation()[-1]))
+        print(gen, func(fo.translation()[-1]))
 
         if fo.potential <= 0:
             break
