@@ -65,7 +65,7 @@ class Evolution(metaclass=ABCMeta):
 
     # 基因變異
     @abstractmethod
-    def mutate(self, child):
+    def mutate(self, *args, **kwargs):
         pass
 
     # 繁殖

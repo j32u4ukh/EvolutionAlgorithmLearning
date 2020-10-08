@@ -1,33 +1,23 @@
 import numpy as np
 
 
-data_size = 3
-value_scale = np.arange(data_size)[::-1]
+ones = np.ones(shape=(3, 5))
+twos = np.ones(shape=(3, 5)) * 2.0
+nums = np.vstack((ones, twos))
+print(nums)
 
+ones = nums[:3]
+twos = nums[-3:]
+print(ones)
+print(twos)
 
-def computeValue(one_hot: np.array):
-    return one_hot.dot(2 ** value_scale)
+flop = np.random.randint(2, size=(3, 5)).astype(np.bool)
+print(flop)
 
-
-array = np.random.randint(2, size=(5, data_size))
-print(array)
-values = computeValue(array)
-print(values)
-bound_limit = (0 <= values) & (values <= 5)
-print(bound_limit)
-array = array[bound_limit]
-print(array)
-values = computeValue(array)
-print(values)
-idx = np.argsort(values)
-print(idx)
-array = array[idx]
-values = computeValue(array)
-print(values)
-idx = np.argsort(values)
-print(idx)
-
-
+ones[flop] = twos[flop]
+print(ones)
+print(twos)
+print(nums)
 # import temp
 #
 # t = temp.Test()
