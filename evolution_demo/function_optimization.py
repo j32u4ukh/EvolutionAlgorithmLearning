@@ -1,6 +1,7 @@
 from evolution import Evolution
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 
 def func(x):
@@ -8,6 +9,7 @@ def func(x):
 
 
 class SimpleExchangeDemo(Evolution):
+    """genetic-algorithm-basic.py"""
     def __init__(self, value_range, rna_size, n_population, mutation_rate):
         super().__init__(rna_size=rna_size, n_population=n_population, logger_name="SimpleExchangeDemo")
         self.mutation_rate = mutation_rate
@@ -53,15 +55,17 @@ class SimpleExchangeDemo(Evolution):
         :param kwargs:
         :return:
         """
-        self.population = self.population[-self.n_population:]
+        self.population = self.population[-self.N_POPULATION:]
+        self.n_population = len(self.population)
         # self.logger.debug(f"n_population: {len(self.population)}")
 
-    def getFitness(self):
+    def getFitness(self, early_stop=False):
         x = self.translation()
         bound_limit = (self.value_range[0] <= x) & (x <= self.value_range[1])
 
         # 淘汰超出值域範圍的基因組
         self.population = self.population[bound_limit]
+        self.n_population = len(self.population)
 
         # 計算適應度
         values = func(self.translation())
@@ -108,6 +112,7 @@ class SimpleExchangeDemo(Evolution):
             # 加入族群中
             # np.append 返回添加後的結果，不改變原始陣列，將陣列 2 加到陣列 1 當中，沿著指定的 axis
             self.population = np.append(self.population, np.array([child]), axis=0)
+            self.n_population = len(self.population)
 
     def geneExchange(self, *args):
         child = args[0].copy()
@@ -121,7 +126,8 @@ class SimpleExchangeDemo(Evolution):
 
 
 class WinnerLoserDemo(Evolution):
-    def __init__(self, value_range, rna_size, n_population, mutation_rate):
+    """MicrobialGeneticAlgorithm.py"""
+    def __init__(self, value_range, rna_size, n_population, exchange_rate, mutation_rate):
         super().__init__(rna_size=rna_size, n_population=n_population, logger_name="WinnerLoserDemo")
         self.mutation_rate = mutation_rate
         self.value_range = value_range
@@ -129,49 +135,257 @@ class WinnerLoserDemo(Evolution):
         self.translation_dot = 2 ** np.arange(self.rna_size)[::-1]
         self.translation_multiplier = self.value_range[1] / float(2 ** self.rna_size - 1)
 
+        self.exchange_rate = exchange_rate
+
     def initPopulation(self):
         self.population = np.random.randint(2, size=(self.n_population, self.rna_size))
 
     def translation(self):
         return self.population.dot(self.translation_dot) * self.translation_multiplier
 
-    def mutate(self, child: np.array):
-        flop = np.random.randint(2, size=child.shape).astype(np.bool)
+    def evolve(self, *args, **kwargs):
+        # 計算適應度並排序
+        self.getFitness()
 
-    def reproduction(self, *args, **kwargs):
-        pass
+        # 繁殖
+        self.reproduction()
 
-    def geneExchange(self, *args, **kwargs):
-        pass
+        # 計算適應度並排序
+        self.getFitness()
+
+        # 淘汰機制
+        self.naturalSelection()
 
     def getFitness(self, *args, **kwargs):
-        pass
+        x = self.translation()
+        bound_limit = (self.value_range[0] <= x) & (x <= self.value_range[1])
+
+        # 淘汰超出值域範圍的基因組
+        self.population = self.population[bound_limit]
+        self.n_population = len(self.population)
+
+        # 計算適應度
+        values = func(self.translation())
+
+        # 根據 values 數值大小，給予排名的數列，數值越小，排名數值越小
+        # np.argsort([9, 4, 6]) -> array([1, 2, 0], dtype=int64)
+        fitness = np.argsort(values)
+
+        average_fitness = values.mean()
+
+        if average_fitness > self.fitness:
+            self.fitness = average_fitness
+
+            if self.potential < self.POTENTIAL:
+                self.resetPotential()
+        else:
+            self.potential -= 1
+
+        # 根據適應度排序: 讓最小的排最前面，最大的排最後面
+        self.population = self.population[fitness]
+
+    def reproduction(self, *args, **kwargs):
+        n_reproduction = int(self.N_POPULATION * self.reproduction_rate)
+
+        loser = self.population[:n_reproduction]
+        winner = self.population[-n_reproduction:]
+
+        # 基因交換
+        children = self.geneExchange(winner=winner, loser=loser)
+
+        # 產生變異
+        children = self.mutate(children=children)
+
+        # 加入族群中
+        # np.append 返回添加後的結果，不改變原始陣列，將陣列 2 加到陣列 1 當中，沿著指定的 axis
+        self.population = np.append(self.population, children, axis=0)
+        self.n_population = len(self.population)
+        self.logger.debug(f"#population: {self.n_population}")
+
+    def geneExchange(self, *args, **kwargs):
+        child = kwargs["loser"].copy()
+        flop = np.random.random(child.shape) < self.exchange_rate
+
+        child[flop] = kwargs["winner"][flop]
+        return child
+
+    def mutate(self, children: np.array):
+        mutatation = np.random.random(children.shape) < self.mutation_rate
+        mutatation_index0 = np.where(mutatation & (children == 0))
+        mutatation_index1 = np.where(mutatation & (children == 1))
+
+        children[mutatation_index0] = 1
+        children[mutatation_index1] = 0
+
+        return children
 
     def naturalSelection(self, *args, **kwargs):
-        pass
+        self.population = self.population[-self.N_POPULATION:]
+
+
+class DistributionDemo(Evolution):
+    """EvolutionStrategyBasic.py"""
+    def __init__(self, value_range, rna_size, n_population, exchange_rate):
+        self.value_range = value_range
+        self.exchange_rate = exchange_rate
+        super().__init__(rna_size=rna_size, n_population=n_population, logger_name="DistributionDemo")
+
+    def initPopulation(self):
+        value_range = self.value_range[1] - self.value_range[0]
+        self.logger.debug(f"value_range: {value_range}")
+        mu = np.random.rand(self.n_population, self.rna_size) * value_range / self.rna_size
+        std = np.random.rand(self.n_population, self.rna_size)
+        self.population = np.hstack((mu, std))
+
+    def translation(self):
+        mu = self.getMu()
+
+        return mu.sum(axis=1)
 
     def evolve(self, *args, **kwargs):
-        pass
+        # 計算適應度並排序
+        self.getFitness(early_stop=False)
+
+        # 繁殖
+        self.reproduction()
+
+        # 計算適應度並排序
+        self.getFitness(early_stop=True)
+
+        # 淘汰機制
+        self.naturalSelection()
+
+    def getFitness(self, *args, **kwargs):
+        mu = self.translation()
+        valid_mu = np.where((self.value_range[0] <= mu) & (mu <= self.value_range[1]))
+        self.logger.info(f"#valid_mu: {len(valid_mu[0])}")
+        valid_std = self.getValidStdIndex()
+        self.logger.info(f"#valid_std: {len(valid_std[0])}")
+        valid_idx = np.intersect1d(valid_mu, valid_std)
+        self.logger.info(f"#valid_idx: {len(valid_idx)}")
+
+        # 淘汰超出值域範圍的基因組
+        self.population = self.population[valid_idx]
+        self.n_population = len(self.population)
+        self.logger.info(f"#population: {self.n_population}")
+
+        # 計算適應度
+        values = func(self.translation())
+
+        # 根據 values 數值大小，給予排名的數列，數值越小，排名數值越小
+        # np.argsort([9, 4, 6]) -> array([1, 2, 0], dtype=int64)
+        fitness = np.argsort(values)
+
+        # 根據適應度排序: 讓最小的排最前面，最大的排最後面
+        self.population = self.population[fitness]
+
+        if kwargs['early_stop']:
+            average_fitness = values.mean()
+
+            if average_fitness > self.fitness:
+                self.fitness = average_fitness
+
+                if self.potential < self.POTENTIAL:
+                    self.resetPotential()
+            else:
+                self.potential -= 1
+
+    def reproduction(self, *args, **kwargs):
+        n_reproduction = int(self.n_population * self.reproduction_rate)
+        reproduction_scale = max(2, math.ceil(self.N_POPULATION / self.n_population))
+        self.logger.info(f"reproduction_scale: {reproduction_scale}")
+
+        loser = self.population[:n_reproduction]
+        winner = self.population[-n_reproduction:]
+
+        for _ in range(reproduction_scale):
+            # 基因交換
+            children = self.geneExchange(loser=loser, winner=winner)
+
+            children = self.mutate(children=children)
+
+            # 加入族群中
+            # np.append 返回添加後的結果，不改變原始陣列，將陣列 2 加到陣列 1 當中，沿著指定的 axis
+            self.population = np.append(self.population, children, axis=0)
+            self.n_population = len(self.population)
+            self.logger.info(f"#population: {self.n_population}")
+
+    def geneExchange(self, *args, **kwargs):
+        children = kwargs["loser"].copy()
+        self.logger.debug(f"children.shape: {children.shape}")
+        n_children, n_dna = children.shape
+
+        # mu 和相對應的 std 一起進行交換
+        half_flop = np.random.rand(n_children, int(n_dna / 2)) < self.exchange_rate
+        flop = np.hstack((half_flop, half_flop))
+
+        children[flop] = kwargs["winner"][flop]
+        return children
+
+    def mutate(self, *args, **kwargs):
+        mu = self.getMu(population=kwargs["children"])
+        std = self.getStd(population=kwargs["children"])
+        self.logger.debug(f"mu.shape: {mu.shape}, std.shape: {std.shape}")
+
+        # 以原始 mu 為平均數，標準差為 std 的常態分配重新抽樣
+        mu = np.random.normal(loc=mu, scale=std)
+
+        # 以原始 std 為平均數，標準差為 1 的常態分配重新抽樣
+        std = np.random.normal(loc=std, scale=np.ones_like(std))
+
+        return np.hstack((mu, std))
+
+    def naturalSelection(self, *args, **kwargs):
+        self.population = self.population[-self.N_POPULATION:]
+
+    def getMu(self, population=None):
+        if population is None:
+            population = self.population
+
+        return population[:, :self.rna_size]
+
+    def getStd(self, population=None):
+        if population is None:
+            population = self.population
+
+        return population[:, self.rna_size:]
+
+    def getValidStdIndex(self):
+        """
+        取得有效標準差的索引值
+
+        :return:
+        """
+        std = self.getStd()
+
+        # 標準差為負數處標記為 1，RNA 其中只要至少一處為 1，加總便會大於等於 1
+        invalid_std = np.array(std < 0.0).astype(np.int).sum(axis=1)
+
+        # 有效的標準差所有標記都應為 0
+        valid_idx = np.where(invalid_std <= 0.0)
+
+        return valid_idx
 
 
 if __name__ == "__main__":
+    RNA_SIZE = 10
+    N_POPULATION = 200
+    EXCHANGE_RATE = 0.6
+    MUTATION_RATE = 0.003
+    X_BOUND = [0, 5]
+    N_GENERATIONS = 200
+
     def testSimpleExchangeDemo():
         """
         將畫圖相關程式碼移到函式中，會導致互動效果出錯，但並非程式碼本身出錯。
 
         :return:
         """
-        RNA_SIZE = 10
-        N_POPULATION = 100
-        MUTATION_RATE = 0.003
-        X_BOUND = [0, 5]
-        N_GENERATIONS = 200
-
         sed = SimpleExchangeDemo(value_range=X_BOUND,
                                  rna_size=RNA_SIZE,
                                  n_population=N_POPULATION,
                                  mutation_rate=MUTATION_RATE)
-        sed.naturalSelection()
+        sed.setPotential(potential=5)
 
         plt.ion()
         x = np.linspace(*X_BOUND, 200)
@@ -202,4 +416,81 @@ if __name__ == "__main__":
         plt.show()
 
 
-    testSimpleExchangeDemo()
+    def testWinnerLoserDemo():
+        wld = WinnerLoserDemo(value_range=X_BOUND,
+                              rna_size=RNA_SIZE,
+                              n_population=N_POPULATION,
+                              exchange_rate=EXCHANGE_RATE,
+                              mutation_rate=MUTATION_RATE)
+
+        plt.ion()
+        x = np.linspace(*X_BOUND, 200)
+        plt.plot(x, func(x))
+
+        for gen in range(N_GENERATIONS):
+            if 'sca' in globals():
+                sca.remove()
+
+            x = wld.translation()
+            y = func(x)
+            # print(y)
+            sca = plt.scatter(x,
+                              y,
+                              s=200,
+                              lw=0,
+                              c='red',
+                              alpha=0.5)
+            plt.pause(0.05)
+
+            wld.evolve()
+            print(f"gen: {gen}, avg: {wld.fitness}, best: {func(wld.translation()[-1])}")
+
+            if wld.potential <= 0:
+                break
+
+        plt.ioff()
+        plt.show()
+
+
+    dd = DistributionDemo(value_range=X_BOUND,
+                          rna_size=RNA_SIZE,
+                          n_population=N_POPULATION,
+                          exchange_rate=EXCHANGE_RATE)
+    dd.setPotential(potential=20)
+
+    plt.ion()
+    x = np.linspace(*X_BOUND, 200)
+    plt.plot(x, func(x))
+
+    for gen in range(N_GENERATIONS):
+        if 'sca' in globals():
+            sca.remove()
+
+        x = dd.translation()
+        y = func(x)
+        # print(y)
+        sca = plt.scatter(x,
+                          y,
+                          s=200,
+                          lw=0,
+                          c='red',
+                          alpha=0.5)
+        plt.pause(0.05)
+
+        dd.evolve()
+        print(f"gen: {gen}, avg: {dd.fitness}, best: {func(dd.translation()[-1])}, potential: {dd.potential}")
+
+        if dd.potential <= 0:
+            break
+
+        # sca = plt.scatter(x,
+        #                   y,
+        #                   s=200,
+        #                   lw=0,
+        #                   c='red',
+        #                   alpha=0.5)
+        # plt.show()
+
+    plt.ioff()
+    plt.show()
+

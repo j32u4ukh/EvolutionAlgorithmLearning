@@ -1,25 +1,7 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
-
-ones = np.ones(shape=(3, 5))
-twos = np.ones(shape=(3, 5)) * 2.0
-nums = np.vstack((ones, twos))
-print(nums)
-
-ones = nums[:3]
-twos = nums[-3:]
-print(ones)
-print(twos)
-
-flop = np.random.randint(2, size=(3, 5)).astype(np.bool)
-print(flop)
-
-ones[flop] = twos[flop]
-print(ones)
-print(twos)
-print(nums)
-# import temp
-#
-# t = temp.Test()
-# t.private()
-# t.public()
+norm = np.random.normal(loc=0, scale=1, size=(2000,))
+bins = np.linspace(-3, 3, 50)
+plt.hist(x=norm, bins=bins)
+plt.show()

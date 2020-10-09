@@ -9,6 +9,9 @@ class Evolution(metaclass=ABCMeta):
         # rna 長度: 暫時不可變動
         self.rna_size = rna_size
 
+        # dna 長度: 暫時不可變動
+        self.dna_size = rna_size * 2
+
         # 族群個數: 可變動
         self.n_population = n_population
 
@@ -26,7 +29,7 @@ class Evolution(metaclass=ABCMeta):
         環境的負荷量（carrying capacity），也會影響到族群的大小。
         對生物而言，族群的個體數至少要多少，才能維持族群不致於滅絕呢？
         """
-        # 繁殖倍率，種族數量越少，倍率越高
+        # 繁殖倍率，種族數量越少，倍率越高(或應限制不高於 0.5，以該數值劃分好基因和壞基因)
         self.reproduction_rate = 0.2
 
         # TODO: 若適應度無法再提升，應提前終止演化
@@ -63,9 +66,19 @@ class Evolution(metaclass=ABCMeta):
     def translation(self):
         pass
 
-    # 基因變異
     @abstractmethod
-    def mutate(self, *args, **kwargs):
+    def evolve(self, *args, **kwargs):
+        """
+        封裝 '''計算適應度 -> 繁殖 -> 計算適應度 -> 淘汰''' 的過程
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        pass
+
+    # 計算環境適應度並排序
+    @abstractmethod
+    def getFitness(self, *args, **kwargs):
         pass
 
     # 繁殖
@@ -84,9 +97,9 @@ class Evolution(metaclass=ABCMeta):
     def geneExchange(self, *args, **kwargs):
         pass
 
-    # 計算環境適應度
+    # 基因變異
     @abstractmethod
-    def getFitness(self, *args, **kwargs):
+    def mutate(self, *args, **kwargs):
         pass
 
     # 天擇
@@ -101,12 +114,3 @@ class Evolution(metaclass=ABCMeta):
         """
         pass
 
-    @abstractmethod
-    def evolve(self, *args, **kwargs):
-        """
-        封裝 '''計算適應度 -> 繁殖 -> 計算適應度 -> 淘汰''' 的過程
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        pass
