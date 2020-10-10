@@ -1,7 +1,9 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-norm = np.random.normal(loc=0, scale=1, size=(2000,))
-bins = np.linspace(-3, 3, 50)
-plt.hist(x=norm, bins=bins)
-plt.show()
+arr = np.random.rand(10, 5)
+print("#arr:", len(arr))
+values = arr.sum(axis=1)
+over_two = np.where(values >= 2.0)
+arr = arr[over_two]
+print("#arr:", len(arr))

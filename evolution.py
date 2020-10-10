@@ -1,15 +1,21 @@
 from abc import ABCMeta, abstractmethod
 from utils import getLogger
+import numpy as np
 
 
 class Evolution(metaclass=ABCMeta):
+    """
+    1. 根據適應度相對高低為機率，抽取出基因組來進行繁殖
+    2. 以 self.n_population * self.reproduction_rate 來決定每次繁殖的數量；1 / self.reproduction_rate 來決定繁衍幾倍子代
+    3. 子代加入族群中，與親代共同被進行排序，表現差的基因組則剔除
+    """
     def __init__(self, rna_size, n_population, logger_name="Evolution"):
         self.logger = getLogger(logger_name=logger_name)
 
         # rna 長度: 暫時不可變動
         self.rna_size = rna_size
 
-        # dna 長度: 暫時不可變動
+        # dna 長度: 暫時不可變動(mu & std 為一對基因)
         self.dna_size = rna_size * 2
 
         # 族群個數: 可變動
@@ -30,7 +36,9 @@ class Evolution(metaclass=ABCMeta):
         對生物而言，族群的個體數至少要多少，才能維持族群不致於滅絕呢？
         """
         # 繁殖倍率，種族數量越少，倍率越高(或應限制不高於 0.5，以該數值劃分好基因和壞基因)
-        self.reproduction_rate = 0.2
+        self.reproduction_rate = 0.25
+        self.reproduction_scale = min(10, int(1 / self.reproduction_rate))
+        self.mutation_strength = 1.0
 
         # TODO: 若適應度無法再提升，應提前終止演化
         self.fitness = 0
@@ -60,6 +68,14 @@ class Evolution(metaclass=ABCMeta):
         :return:
         """
         self.potential = self.POTENTIAL
+
+    def updatePopulationSize(self, n_population):
+        self.n_population = n_population
+
+        # 以 0.25 為中間值，值域為 0 ~ 0.5 的 sigmoid 函數。實際數量小於應有數量時，繁殖倍率會上升；反之則下降。
+        self.reproduction_rate = 0.5 / (1 + np.power(np.e, self.N_POPULATION / self.n_population))
+
+        self.reproduction_scale = min(10, int(1 / self.reproduction_rate))
 
     # RNA 轉譯
     @abstractmethod
@@ -100,6 +116,17 @@ class Evolution(metaclass=ABCMeta):
     # 基因變異
     @abstractmethod
     def mutate(self, *args, **kwargs):
+        pass
+
+    def addOffspring(self, offspring):
+        # 加入族群中
+        # np.append 返回添加後的結果，不改變原始陣列，將陣列 2 加到陣列 1 當中，沿著指定的 axis
+        self.population = np.append(self.population, offspring, axis=0)
+        self.updatePopulationSize(n_population=len(self.population))
+
+    # 不再進步時，提前終止演化
+    @abstractmethod
+    def modifyEarlyStop(self, *args, **kwargs):
         pass
 
     # 天擇
