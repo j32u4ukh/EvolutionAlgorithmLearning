@@ -9,14 +9,18 @@ class Evolution(metaclass=ABCMeta):
     2. 以 self.n_population * self.reproduction_rate 來決定每次繁殖的數量；1 / self.reproduction_rate 來決定繁衍幾倍子代
     3. 子代加入族群中，與親代共同被進行排序，表現差的基因組則剔除
     """
-    def __init__(self, rna_size, n_population, logger_name="Evolution"):
+    def __init__(self, fragment_size, n_population, n_fragment=1, logger_name="Evolution"):
         self.logger = getLogger(logger_name=logger_name)
 
+        # rna 片段，一到多組 rna 片段組成完整的 rna
+        self.fragment_size = fragment_size
+        self.n_fragment = n_fragment
+
         # rna 長度: 暫時不可變動
-        self.rna_size = rna_size
+        self.rna_size = fragment_size * n_fragment
 
         # dna 長度: 暫時不可變動(mu & std 為一對基因)
-        self.dna_size = rna_size * 2
+        self.dna_size = self.rna_size * 2
 
         # 族群個數: 可變動
         self.n_population = n_population

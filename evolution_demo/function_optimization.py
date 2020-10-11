@@ -11,8 +11,8 @@ def func(x):
 class SimpleExchangeDemo(Evolution):
     """genetic-algorithm-basic.py"""
 
-    def __init__(self, value_range, rna_size, n_population, mutation_rate):
-        super().__init__(rna_size=rna_size, n_population=n_population, logger_name="SimpleExchangeDemo")
+    def __init__(self, value_range, fragment_size, n_population, mutation_rate):
+        super().__init__(fragment_size=fragment_size, n_population=n_population, logger_name="SimpleExchangeDemo")
         self.mutation_rate = mutation_rate
         self.value_range = value_range
         # np.arange(self.rna_size): 產生 [0, 1, ..., self.rna_size - 1]
@@ -144,8 +144,8 @@ class SimpleExchangeDemo(Evolution):
 class WinnerLoserDemo(Evolution):
     """MicrobialGeneticAlgorithm.py"""
 
-    def __init__(self, value_range, rna_size, n_population, exchange_rate, mutation_rate):
-        super().__init__(rna_size=rna_size, n_population=n_population, logger_name="WinnerLoserDemo")
+    def __init__(self, value_range, fragment_size, n_population, exchange_rate, mutation_rate):
+        super().__init__(fragment_size=fragment_size, n_population=n_population, logger_name="WinnerLoserDemo")
         self.mutation_rate = mutation_rate
         self.value_range = value_range
         # np.arange(self.rna_size): 產生 [0, 1, ..., self.rna_size - 1]
@@ -267,11 +267,11 @@ class WinnerLoserDemo(Evolution):
 class DistributionDemo(Evolution):
     """EvolutionStrategyBasic.py"""
 
-    def __init__(self, value_range, rna_size, n_population, exchange_rate):
+    def __init__(self, value_range, fragment_size, n_population, exchange_rate):
         self.value_range = value_range
         self.exchange_rate = exchange_rate
         self.mutation_strength = 2.0
-        super().__init__(rna_size=rna_size, n_population=n_population, logger_name="DistributionDemo")
+        super().__init__(fragment_size=fragment_size, n_population=n_population, logger_name="DistributionDemo")
 
     def initPopulation(self):
         value_range = self.value_range[1] - self.value_range[0]
@@ -426,11 +426,12 @@ class DistributionDemo(Evolution):
 class MutationStrengthDistributionDemo(Evolution):
     """ES(1+1).py"""
 
-    def __init__(self, value_range, rna_size, n_population, exchange_rate):
+    def __init__(self, value_range, fragment_size, n_population, exchange_rate):
         self.value_range = value_range
         self.exchange_rate = exchange_rate
         self.mutation_strength = 2.0
-        super().__init__(rna_size=rna_size, n_population=n_population, logger_name="MutationStrengthDistributionDemo")
+        super().__init__(fragment_size=fragment_size, n_population=n_population,
+                         logger_name="MutationStrengthDistributionDemo")
 
     def initPopulation(self):
         value_range = self.value_range[1] - self.value_range[0]
@@ -595,7 +596,7 @@ class MutationStrengthDistributionDemo(Evolution):
 
 
 if __name__ == "__main__":
-    RNA_SIZE = 10
+    FRAGMENT_SIZE = 10
     N_POPULATION = 200
     EXCHANGE_RATE = 0.6
     MUTATION_RATE = 0.003
@@ -610,7 +611,7 @@ if __name__ == "__main__":
         :return:
         """
         sed = SimpleExchangeDemo(value_range=X_BOUND,
-                                 rna_size=RNA_SIZE,
+                                 fragment_size=FRAGMENT_SIZE,
                                  n_population=N_POPULATION,
                                  mutation_rate=MUTATION_RATE)
         sed.setPotential(potential=5)
@@ -647,7 +648,7 @@ if __name__ == "__main__":
 
     def testWinnerLoserDemo():
         wld = WinnerLoserDemo(value_range=X_BOUND,
-                              rna_size=RNA_SIZE,
+                              fragment_size=FRAGMENT_SIZE,
                               n_population=N_POPULATION,
                               exchange_rate=EXCHANGE_RATE,
                               mutation_rate=MUTATION_RATE)
@@ -684,7 +685,7 @@ if __name__ == "__main__":
 
     def testDistributionDemo():
         dd = DistributionDemo(value_range=X_BOUND,
-                              rna_size=RNA_SIZE,
+                              fragment_size=FRAGMENT_SIZE,
                               n_population=N_POPULATION,
                               exchange_rate=EXCHANGE_RATE)
         dd.setPotential(potential=20)
@@ -721,7 +722,7 @@ if __name__ == "__main__":
 
     def testMutationStrengthDistributionDemo():
         msdd = MutationStrengthDistributionDemo(value_range=X_BOUND,
-                                                rna_size=RNA_SIZE,
+                                                fragment_size=FRAGMENT_SIZE,
                                                 n_population=N_POPULATION,
                                                 exchange_rate=EXCHANGE_RATE)
         msdd.setPotential(potential=20)
