@@ -270,13 +270,14 @@ class DistributionDemo(Evolution):
     def __init__(self, value_range, rna_size, n_population, exchange_rate):
         self.value_range = value_range
         self.exchange_rate = exchange_rate
+        self.mutation_strength = 2.0
         super().__init__(rna_size=rna_size, n_population=n_population, logger_name="DistributionDemo")
 
     def initPopulation(self):
         value_range = self.value_range[1] - self.value_range[0]
 
         mu = np.random.rand(self.n_population, self.rna_size) * value_range / self.rna_size
-        std = np.random.rand(self.n_population, self.rna_size)
+        std = np.random.rand(self.n_population, self.rna_size) * self.mutation_strength + 1e-5
         self.population = np.hstack((mu, std))
 
     def translation(self):
@@ -292,9 +293,9 @@ class DistributionDemo(Evolution):
         self.reproduction()
 
         # 計算適應度並排序
-        values = self.getFitness()
+        fitness = self.getFitness()
 
-        self.modifyEarlyStop(values=values)
+        self.modifyEarlyStop(fitness=fitness)
 
         # 淘汰機制
         self.naturalSelection()
@@ -302,8 +303,9 @@ class DistributionDemo(Evolution):
     def getFitness(self, *args, **kwargs):
         mu = self.translation()
         valid_mu = np.where((self.value_range[0] <= mu) & (mu <= self.value_range[1]))
-        valid_std = self.getValidStdIndex()
-        valid_idx = np.intersect1d(valid_mu, valid_std)
+        # valid_std = self.getValidStdIndex()
+        # valid_idx = np.intersect1d(valid_mu, valid_std)
+        valid_idx = valid_mu
 
         # 淘汰超出值域範圍的基因組
         self.population = self.population[valid_idx]
@@ -311,26 +313,37 @@ class DistributionDemo(Evolution):
         self.logger.info(f"#population: {self.n_population}")
 
         # 計算適應度
-        values = func(self.translation())
+        fitness = func(self.translation())
 
         # 根據 values 數值大小，給予排名的數列，數值越小，排名數值越小
         # np.argsort([9, 4, 6]) -> array([1, 2, 0], dtype=int64)
-        fitness = np.argsort(values)
+        indexs = np.argsort(fitness)
 
         # 根據適應度排序: 讓最小的排最前面，最大的排最後面
-        self.population = self.population[fitness]
+        self.population = self.population[indexs]
 
-        return values
+        return fitness
 
     def reproduction(self, *args, **kwargs):
         n_reproduction = int(self.n_population * self.reproduction_rate)
-        reproduction_scale = max(2, math.ceil(self.N_POPULATION / self.n_population))
-        self.logger.info(f"reproduction_scale: {reproduction_scale}")
 
-        loser = self.population[:n_reproduction]
-        winner = self.population[-n_reproduction:]
+        # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
+        array = np.arange(self.n_population)
+        winner_idx = np.random.choice(array,
+                                      size=n_reproduction,
+                                      replace=False,
+                                      p=array / array.sum())
 
-        for _ in range(reproduction_scale):
+        array = array[::-1]
+        loser_idx = np.random.choice(array,
+                                     size=n_reproduction,
+                                     replace=False,
+                                     p=array / array.sum())
+
+        winner = self.population[winner_idx]
+        loser = self.population[loser_idx]
+
+        for _ in range(self.reproduction_scale):
             # 基因交換
             children = self.geneExchange(loser=loser, winner=winner)
 
@@ -343,7 +356,6 @@ class DistributionDemo(Evolution):
 
     def geneExchange(self, *args, **kwargs):
         children = kwargs["loser"].copy()
-        self.logger.debug(f"children.shape: {children.shape}")
         n_children, n_dna = children.shape
 
         # mu 和相對應的 std 一起進行交換
@@ -362,20 +374,22 @@ class DistributionDemo(Evolution):
         mu = np.random.normal(loc=mu, scale=std)
 
         # 以原始 std 為平均數，標準差為 1 的常態分配重新抽樣
-        std = np.random.normal(loc=std, scale=np.ones_like(std))
+        std *= (np.random.rand(*std.shape) * self.mutation_strength + 1e-5)
 
         return np.hstack((mu, std))
 
     def modifyEarlyStop(self, *args, **kwargs):
-        average_fitness = kwargs['values'].mean()
+        average_fitness = kwargs['fitness'].mean()
 
         if average_fitness > self.fitness:
             self.fitness = average_fitness
 
-            if self.potential < self.POTENTIAL:
-                self.resetPotential()
+            self.mutation_strength /= 0.8
         else:
-            self.potential -= 1
+            if self.mutation_strength < 1e-5:
+                self.potential = 0
+
+            self.mutation_strength *= 0.8
 
     def naturalSelection(self, *args, **kwargs):
         self.population = self.population[-self.N_POPULATION:]
@@ -619,49 +633,12 @@ if __name__ == "__main__":
         plt.show()
 
 
-    # def testWinnerLoserDemo():
-    wld = WinnerLoserDemo(value_range=X_BOUND,
-                          rna_size=RNA_SIZE,
-                          n_population=N_POPULATION,
-                          exchange_rate=EXCHANGE_RATE,
-                          mutation_rate=MUTATION_RATE)
-
-    plt.ion()
-    x = np.linspace(*X_BOUND, 200)
-    plt.plot(x, func(x))
-    sca = None
-
-    for gen in range(N_GENERATIONS):
-        if sca is not None:
-            sca.remove()
-
-        x = wld.translation()
-        y = func(x)
-        # print(y)
-        sca = plt.scatter(x,
-                          y,
-                          s=200,
-                          lw=0,
-                          c='red',
-                          alpha=0.5)
-        plt.pause(0.05)
-
-        wld.evolve()
-        print(f"gen: {gen}, avg: {wld.fitness}, best: {func(wld.translation()[-1])}")
-
-        if wld.potential <= 0:
-            break
-
-    plt.ioff()
-    plt.show()
-
-
-    def testDistributionDemo():
-        dd = DistributionDemo(value_range=X_BOUND,
+    def testWinnerLoserDemo():
+        wld = WinnerLoserDemo(value_range=X_BOUND,
                               rna_size=RNA_SIZE,
                               n_population=N_POPULATION,
-                              exchange_rate=EXCHANGE_RATE)
-        dd.setPotential(potential=20)
+                              exchange_rate=EXCHANGE_RATE,
+                              mutation_rate=MUTATION_RATE)
 
         plt.ion()
         x = np.linspace(*X_BOUND, 200)
@@ -672,7 +649,7 @@ if __name__ == "__main__":
             if sca is not None:
                 sca.remove()
 
-            x = dd.translation()
+            x = wld.translation()
             y = func(x)
             # print(y)
             sca = plt.scatter(x,
@@ -683,14 +660,51 @@ if __name__ == "__main__":
                               alpha=0.5)
             plt.pause(0.05)
 
-            dd.evolve()
-            print(f"gen: {gen}, avg: {dd.fitness}, best: {func(dd.translation()[-1])}, potential: {dd.potential}")
+            wld.evolve()
+            print(f"gen: {gen}, avg: {wld.fitness}, best: {func(wld.translation()[-1])}")
 
-            if dd.potential <= 0:
+            if wld.potential <= 0:
                 break
 
         plt.ioff()
         plt.show()
+
+
+    # def testDistributionDemo():
+    dd = DistributionDemo(value_range=X_BOUND,
+                          rna_size=RNA_SIZE,
+                          n_population=N_POPULATION,
+                          exchange_rate=EXCHANGE_RATE)
+    dd.setPotential(potential=20)
+
+    plt.ion()
+    x = np.linspace(*X_BOUND, 200)
+    plt.plot(x, func(x))
+    sca = None
+
+    for gen in range(N_GENERATIONS):
+        if sca is not None:
+            sca.remove()
+
+        x = dd.translation()
+        y = func(x)
+        # print(y)
+        sca = plt.scatter(x,
+                          y,
+                          s=200,
+                          lw=0,
+                          c='red',
+                          alpha=0.5)
+        plt.pause(0.05)
+
+        dd.evolve()
+        print(f"gen: {gen}, avg: {dd.fitness}, best: {func(dd.translation()[-1])}, potential: {dd.potential}")
+
+        if dd.potential <= 0:
+            break
+
+    plt.ioff()
+    plt.show()
 
 
     def testMutationStrengthDistributionDemo():
