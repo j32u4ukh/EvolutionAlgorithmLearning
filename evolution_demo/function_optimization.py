@@ -31,7 +31,7 @@ class SimpleExchangeDemo(Evolution):
         return self.population.dot(self.translation_dot) * self.translation_multiplier
 
     def evolve(self, *args, **kwargs):
-        # 計算適應度
+        # 計算適應度並排序
         self.getFitness()
 
         # 繁殖
@@ -68,9 +68,7 @@ class SimpleExchangeDemo(Evolution):
     def reproduction(self, *args, **kwargs):
         # 取出最優秀的一批基因組
         n_best = int(self.N_POPULATION * self.reproduction_rate)
-
-        if n_best > self.n_population:
-            n_best = self.n_population
+        n_best = min(n_best, self.n_population)
 
         # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
         array = np.arange(self.n_population)
@@ -152,7 +150,9 @@ class WinnerLoserDemo(Evolution):
         self.value_range = value_range
         # np.arange(self.rna_size): 產生 [0, 1, ..., self.rna_size - 1]
         self.translation_dot = 2 ** np.arange(self.rna_size)[::-1]
-        self.translation_multiplier = self.value_range[1] / float(2 ** self.rna_size - 1)
+
+        value_range_size = value_range[1] - value_range[0]
+        self.translation_multiplier = value_range_size / float(2 ** self.rna_size - 1)
 
         self.exchange_rate = exchange_rate
 
@@ -170,20 +170,20 @@ class WinnerLoserDemo(Evolution):
         self.reproduction()
 
         # 計算適應度並排序
-        values = self.getFitness()
+        fitness = self.getFitness()
 
-        self.modifyEarlyStop(values=values)
+        self.modifyEarlyStop(fitness=fitness)
 
         # 淘汰機制
         self.naturalSelection()
 
     def getFitness(self, *args, **kwargs):
-        x = self.translation()
-        bound_limit = (self.value_range[0] <= x) & (x <= self.value_range[1])
-
-        # 淘汰超出值域範圍的基因組
-        self.population = self.population[bound_limit]
-        self.updatePopulationSize(n_population=len(self.population))
+        # x = self.translation()
+        # bound_limit = (self.value_range[0] <= x) & (x <= self.value_range[1])
+        #
+        # # 淘汰超出值域範圍的基因組
+        # self.population = self.population[bound_limit]
+        # self.updatePopulationSize(n_population=len(self.population))
 
         # 計算適應度
         values = func(self.translation())
@@ -199,12 +199,23 @@ class WinnerLoserDemo(Evolution):
 
     def reproduction(self, *args, **kwargs):
         n_reproduction = int(self.N_POPULATION * self.reproduction_rate)
+        n_reproduction = min(n_reproduction, int(self.n_population / 2))
 
-        loser = self.population[:n_reproduction]
-        winner = self.population[-n_reproduction:]
+        # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
+        array = np.arange(self.n_population)
+        winner = np.random.choice(array,
+                                  size=n_reproduction,
+                                  replace=False,
+                                  p=array / array.sum())
+
+        array = array[::-1]
+        loser = np.random.choice(array,
+                                 size=n_reproduction,
+                                 replace=False,
+                                 p=array / array.sum())
 
         # 基因交換
-        children = self.geneExchange(winner=winner, loser=loser)
+        children = self.geneExchange(winner=self.population[winner], loser=self.population[loser])
 
         # 產生變異
         children = self.mutate(children=children)
@@ -214,11 +225,17 @@ class WinnerLoserDemo(Evolution):
         self.logger.debug(f"#population: {self.n_population}")
 
     def geneExchange(self, *args, **kwargs):
-        child = kwargs["loser"].copy()
-        flop = np.random.random(child.shape) < self.exchange_rate
+        children = kwargs["loser"].copy()
+        flop = np.random.random(children.shape) < self.exchange_rate
+        children[flop] = kwargs["winner"][flop]
 
-        child[flop] = kwargs["winner"][flop]
-        return child
+        for _ in range(self.reproduction_scale - 1):
+            child = kwargs["loser"].copy()
+            flop = np.random.random(child.shape) < self.exchange_rate
+            child[flop] = kwargs["winner"][flop]
+            children = np.append(children, child, axis=0)
+
+        return children
 
     def mutate(self, children: np.array):
         mutatation = np.random.random(children.shape) < self.mutation_rate
@@ -231,7 +248,7 @@ class WinnerLoserDemo(Evolution):
         return children
 
     def modifyEarlyStop(self, *args, **kwargs):
-        average_fitness = kwargs['values'].mean()
+        average_fitness = kwargs['fitness'].mean()
 
         if average_fitness > self.fitness:
             self.fitness = average_fitness
@@ -243,6 +260,8 @@ class WinnerLoserDemo(Evolution):
 
     def naturalSelection(self, *args, **kwargs):
         self.population = self.population[-self.N_POPULATION:]
+        self.updatePopulationSize(n_population=len(self.population))
+        self.logger.debug(f"n_population: {self.n_population}")
 
 
 class DistributionDemo(Evolution):
@@ -255,7 +274,7 @@ class DistributionDemo(Evolution):
 
     def initPopulation(self):
         value_range = self.value_range[1] - self.value_range[0]
-        self.logger.debug(f"value_range: {value_range}")
+
         mu = np.random.rand(self.n_population, self.rna_size) * value_range / self.rna_size
         std = np.random.rand(self.n_population, self.rna_size)
         self.population = np.hstack((mu, std))
@@ -564,48 +583,11 @@ if __name__ == "__main__":
 
         :return:
         """
-    sed = SimpleExchangeDemo(value_range=X_BOUND,
-                             rna_size=RNA_SIZE,
-                             n_population=N_POPULATION,
-                             mutation_rate=MUTATION_RATE)
-    sed.setPotential(potential=5)
-
-    plt.ion()
-    x = np.linspace(*X_BOUND, 200)
-    plt.plot(x, func(x))
-    sca = None
-
-    for gen in range(N_GENERATIONS):
-        if sca is not None:
-            sca.remove()
-
-        x = sed.translation()
-        y = func(x)
-        # print(y)
-        sca = plt.scatter(x,
-                          y,
-                          s=200,
-                          lw=0,
-                          c='red',
-                          alpha=0.5)
-        plt.pause(0.05)
-
-        sed.evolve()
-        print(gen, func(sed.translation()[-1]))
-
-        if sed.potential <= 0:
-            break
-
-    plt.ioff()
-    plt.show()
-
-
-    def testWinnerLoserDemo():
-        wld = WinnerLoserDemo(value_range=X_BOUND,
-                              rna_size=RNA_SIZE,
-                              n_population=N_POPULATION,
-                              exchange_rate=EXCHANGE_RATE,
-                              mutation_rate=MUTATION_RATE)
+        sed = SimpleExchangeDemo(value_range=X_BOUND,
+                                 rna_size=RNA_SIZE,
+                                 n_population=N_POPULATION,
+                                 mutation_rate=MUTATION_RATE)
+        sed.setPotential(potential=5)
 
         plt.ion()
         x = np.linspace(*X_BOUND, 200)
@@ -616,7 +598,7 @@ if __name__ == "__main__":
             if sca is not None:
                 sca.remove()
 
-            x = wld.translation()
+            x = sed.translation()
             y = func(x)
             # print(y)
             sca = plt.scatter(x,
@@ -627,14 +609,51 @@ if __name__ == "__main__":
                               alpha=0.5)
             plt.pause(0.05)
 
-            wld.evolve()
-            print(f"gen: {gen}, avg: {wld.fitness}, best: {func(wld.translation()[-1])}")
+            sed.evolve()
+            print(gen, func(sed.translation()[-1]))
 
-            if wld.potential <= 0:
+            if sed.potential <= 0:
                 break
 
         plt.ioff()
         plt.show()
+
+
+    # def testWinnerLoserDemo():
+    wld = WinnerLoserDemo(value_range=X_BOUND,
+                          rna_size=RNA_SIZE,
+                          n_population=N_POPULATION,
+                          exchange_rate=EXCHANGE_RATE,
+                          mutation_rate=MUTATION_RATE)
+
+    plt.ion()
+    x = np.linspace(*X_BOUND, 200)
+    plt.plot(x, func(x))
+    sca = None
+
+    for gen in range(N_GENERATIONS):
+        if sca is not None:
+            sca.remove()
+
+        x = wld.translation()
+        y = func(x)
+        # print(y)
+        sca = plt.scatter(x,
+                          y,
+                          s=200,
+                          lw=0,
+                          c='red',
+                          alpha=0.5)
+        plt.pause(0.05)
+
+        wld.evolve()
+        print(f"gen: {gen}, avg: {wld.fitness}, best: {func(wld.translation()[-1])}")
+
+        if wld.potential <= 0:
+            break
+
+    plt.ioff()
+    plt.show()
 
 
     def testDistributionDemo():
