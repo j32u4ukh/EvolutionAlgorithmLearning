@@ -7,6 +7,7 @@ CENTER_Y = 0.0
 RADIUS = 3.0
 CENTER = [CENTER_X, CENTER_Y]
 
+
 def circle(x=None, y=None):
     if x is not None:
         data = x
@@ -25,7 +26,7 @@ def circle(x=None, y=None):
 
 
 class CircleApproach(Evolution):
-    def __init__(self, value_range, fragment_size, n_population, exchange_rate, center, radius):
+    def __init__(self, value_range, fragment_size, n_population, center, radius, exchange_rate=0.5):
         self.value_range = value_range
         self.exchange_rate = exchange_rate
         self.mutation_strength = 2.0
@@ -106,32 +107,55 @@ class CircleApproach(Evolution):
 
     def reproduction(self, *args, **kwargs):
         distance = kwargs['distance']
-        self.logger.info(f"distance: {distance}")
+        # self.logger.info(f"sorted distance: {distance}")
         inside = self.population[np.where(distance < self.radius - 1e-5)]
         outside = self.population[np.where(distance > self.radius + 1e-5)]
         # online = self.population[np.where(self.radius - 1e-5 <= distance <= self.radius + 1e-5)]
 
-        n_reproduction = min(len(inside), len(outside))
+        n_inside = len(inside)
+        n_outside = len(outside)
 
-        # TODO: 考慮只有 inside 或只有 outside 的情況!!
-        # getFitness 當中根據適應度排序，絕對距離越小的會在越後面，即便現在根據實際差距取出，此排序還是存在
-        inside = inside[-n_reproduction:]
-        outside = outside[-n_reproduction:]
+        # 考慮只有 inside 或只有 outside 的情況!!
+        if n_inside != 0 and n_outside != 0:
+            # n_inside != 0 and n_outside != 0
+            n_reproduction = min(n_inside, n_outside)
+
+            # getFitness 當中根據適應度排序，絕對距離越小的會在越後面，即便現在根據實際差距取出，此排序還是存在
+            gene1 = inside[-n_reproduction:]
+            gene2 = outside[-n_reproduction:]
+
+        else:
+            n_reproduction = int(self.n_population * self.reproduction_rate)
+
+            # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
+            array = np.arange(self.n_population)
+            gene1_idx = np.random.choice(array,
+                                         size=n_reproduction,
+                                         replace=False,
+                                         p=array / array.sum())
+            gene1 = self.population[gene1_idx]
+
+            array = array[::-1]
+            gene2_idx = np.random.choice(array,
+                                         size=n_reproduction,
+                                         replace=False,
+                                         p=array / array.sum())
+            gene2 = self.population[gene2_idx]
 
         for _ in range(self.reproduction_scale):
             # 基因交換
-            children = self.geneExchange(inside=inside, outside=outside)
+            children = self.geneExchange(gene1, gene2)
 
             children = self.mutate(children=children)
 
             # 加入族群中
             self.addOffspring(offspring=children)
             self.updatePopulationSize(n_population=len(self.population))
-            self.logger.info(f"#population: {self.n_population}")
+            # self.logger.info(f"#population: {self.n_population}")
 
     def geneExchange(self, *args, **kwargs):
         # shape = (n_reproduction, fragment_size * 4)
-        children = kwargs["inside"].copy()
+        children = args[0].copy()
         n_children, _ = children.shape
 
         # mu 和相對應的 std 一起進行交換
@@ -139,20 +163,26 @@ class CircleApproach(Evolution):
         flop_y = np.random.rand(n_children, self.fragment_size) < self.exchange_rate
         flop = np.hstack((flop_x, flop_y, flop_x, flop_y))
 
-        children[flop] = kwargs["outside"][flop]
+        children[flop] = args[1][flop]
         return children
 
     def mutate(self, *args, **kwargs):
         mu_x, std_x, mu_y, std_y = self.getGenome(population=kwargs["children"])
 
         # 以原始 mu_x 為平均數，標準差為 std_x 的常態分配重新抽樣
-        mu_x = np.random.normal(loc=mu_x, scale=std_x)
+        try:
+            mu_x = np.random.normal(loc=mu_x, scale=std_x)
+        except:
+            self.logger.error(f"std_x | self.mutation_strength: {self.mutation_strength}")
 
         # 對 std_x 的變異強度做增減
         std_x *= (np.random.rand(*std_x.shape) * self.mutation_strength + 1e-5)
 
         # 以原始 mu_y 為平均數，標準差為 std_y 的常態分配重新抽樣
-        mu_y = np.random.normal(loc=mu_y, scale=std_y)
+        try:
+            mu_y = np.random.normal(loc=mu_y, scale=std_y)
+        except:
+            self.logger.error(f"std_y | self.mutation_strength: {self.mutation_strength}")
 
         # 對 std_y 的變異強度做增減
         std_y *= (np.random.rand(*std_y.shape) * self.mutation_strength + 1e-5)
@@ -175,7 +205,8 @@ class CircleApproach(Evolution):
     def naturalSelection(self, *args, **kwargs):
         # 只保留適應度大於 0 的基因組
         self.population = self.population[np.where(kwargs['fitness'] > 0.0)]
-        self.population = self.population[-self.N_POPULATION]
+        self.logger.info(f"#(fitness > 0.0): {len(self.population)}")
+        self.population = self.population[-self.N_POPULATION:]
         self.updatePopulationSize(n_population=len(self.population))
 
     def getGenome(self, population=None):
@@ -199,7 +230,7 @@ class CircleApproach(Evolution):
         if population is None:
             population = self.population
 
-        return population[:, self.fragment_size:self.fragment_size * 2]
+        return population[:, self.fragment_size:self.rna_size]
 
     def getStdX(self, population=None):
         if population is None:
@@ -224,7 +255,6 @@ N_GENERATIONS = 200
 ca = CircleApproach(value_range=VALUE_RANGE,
                     fragment_size=FRAGMENT_SIZE,
                     n_population=N_POPULATION,
-                    exchange_rate=EXCHANGE_RATE,
                     center=CENTER,
                     radius=RADIUS)
 x = np.hstack((np.linspace(-RADIUS, -RADIUS + 0.1, num=100),
@@ -238,12 +268,20 @@ plt.xlim(-RADIUS - 2.0, RADIUS + 2.0)
 plt.ylim(-RADIUS - 2.0, RADIUS + 2.0)
 plt.scatter(x, y)
 
+scatter = None
+
 for gen in range(N_GENERATIONS):
+    if scatter is not None:
+        scatter.remove()
+
     ca.evolve()
     x, y = ca.translation()
     scatter = plt.scatter(x, y)
     plt.pause(0.05)
-    scatter.remove()
+    print(f"gen: {gen}, fitness: {ca.fitness}, mutation_strength: {ca.mutation_strength}")
+
+    if ca.potential <= 0:
+        break
 
 plt.ioff()
 plt.show()
